@@ -13,7 +13,7 @@
 ::
 ::
 
-set Version=2.02
+set Version=2.03
 
 ::Valeurs numeraires
 set Sound_vol=0
@@ -109,7 +109,9 @@ if not exist "d:\CabOS\serial" (
 	set "serial=%mac%-!date:~10,4!!date:~7,2!!date:~4,2!!time:~0,2!!time:~3,2!!time:~6,2!"
 	echo %serial%>d:\CabOS\serial
 	) ELSE (
-	set /P "serial=<d:\CabOS\serial
+	set /P "serial=<d:\CabOS\serial"
+	)
+	
 echo.
 echo Serial number of this Cabinet: %serial%
 echo.
