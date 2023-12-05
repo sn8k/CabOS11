@@ -1,19 +1,43 @@
 @echo off
+setlocal ENABLEDELAYEDEXPANSION 
+
 ::Starter 2.0
 ::
 :: Launcher CabOS 11
 ::
-::
-::
-::
-::
-::
-::
-::
-::
-::
+:: complete Rewrite of my first CabOS launcher. 
+:: cleaner, modulable, and faster.
+:: includes an autoupdater
+:: An internet connexion is no more required, but it's better to have it activated
 
-set Version=2.03
+
+:: check if there's an external setting file.
+:: the setting must be called "main.cmd" and be placed in the settings folder.
+
+cd /d %~dp0
+
+if not exist ".\settings\" (
+    echo settings folder not found. A new installation ?
+    Echo.
+    echo Creating main folders
+    md .\Settings
+    md .\Binaries
+    md .\temp
+    md .\temp\updater
+    md .\temp\hotfixes
+    md .\temp\uwf_mgr
+    )
+
+
+
+if exist ".\settings\main.cmd" ( 
+    call ".\settings\main.cmd" 
+    echo external settings loaded 
+    goto use_external_settings 
+    )
+
+
+set Version=2.05
 
 ::Valeurs numeraires
 set Sound_vol=0
@@ -33,10 +57,12 @@ set fw_temp=D:\CabOS\temp\updater
 set hotfixes=D:\CabOS\temp\hotfixes
 
 ::Updater settings
-set update_url=https://raw.githubusercontent.com/sn8k/CabOS/main/version.run
+set updater_off=true
+set update_url=https://raw.githubusercontent.com/sn8k/CabOS/main/version.runs
 set runner_url=https://github.com/sn8k/CabOS/raw/main/runner.cmd
 set zipped_url=https://github.com/sn8k/CabOS/archive/refs/heads/main.zip
 
+:use_external_settings
 
 :redirector
 if "%1"=="noupdate" ( cls & goto updated )
@@ -68,35 +94,59 @@ goto EOF
 
 :step1
 :: This part is empty, that's normal
-:: it's here only for debugging options ...
+:: it's here only for debugging options if needed.
+
 
 
 :: End of Step 1
 
 :admin_check
-:: Demande l'élévation de privilèges administratifs
+
+:: Request admin rights
 NET FILE 1>NUL 2>NUL
 if '%errorlevel%' == '0' ( goto gotAdmin ) else ( goto getAdmin )
+
 :getAdmin
-echo Demande d'élévation de privilèges administratifs...
+echo Demande d'elevation de privileges administratifs...
 cd /d %~dp0
 powershell -Command "& { Start-Process cmd -ArgumentList '/c %0' -Verb RunAs }"
 exit /b
+
 :gotAdmin
+
+:: should now have admin rights
+
+@echo off
 echo.
 echo Admin rights checked.
 echo.
+
+
+:hotfixes
+:: this whole part will launcher external batch from the hotfixes folder
 
 :hotfixes_downloader
 ::a completer.
 
 :hotfixes_launcher
 for %%f in (%hotfixes%\*.bat) do (
+    echo hotfixes found in folder.
+    echo Starting them.
+    echo.
     call "%%f"
 )
 
 
+:serial
+:: this part creates an unique serialNumber. 
+:: i will probably use it as licencing option, but for now, it's useless and only there to keep the idea alive.
+
 :Serial_gen
+
+
+@echo off
+
+
 for /f "tokens=2 delims=: " %%a in ('ipconfig ^| find "Adresse physique"') do (
     set "mac=%%a"
 )
@@ -104,19 +154,36 @@ for /f "tokens=2 delims=: " %%a in ('ipconfig ^| find "Adresse physique"') do (
 :: Remplace les deux-points par des tirets
 set "mac=!mac::=-!"
 
-:: Génère un numéro de série en ajoutant une date/heure
-if not exist "d:\CabOS\serial" (
-	set "serial=%mac%-!date:~10,4!!date:~7,2!!date:~4,2!!time:~0,2!!time:~3,2!!time:~6,2!"
-	echo %serial%>d:\CabOS\serial
-	) ELSE (
-	set /P "serial=<d:\CabOS\serial"
-	)
-	
+:: Generate a serial number if needed
+if not exist "d:\CabOS\Settings\serial.tmp" (
+    set serial=%random%-%date%-%random%
+    echo %serial% >"d:\CabOS\serial.tmp"
+    ) ELSE (
+    set /P serial=<"d:\CabOS\serial.tmp"
+    )
+    
+powershell -command "& {Write-Host -NoNewline 'Serial number of this Cabinet: ' -ForegroundColor White}"
+
+if exist ".\Settings\serial.tmp" (
+    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Red; [Console]::ResetColor()}"
+)
+
 echo.
-echo Serial number of this Cabinet: %serial%
+    
+echo.
+echo  %serial%
 echo.
 
+
+
 :updater
+:: CabOS can download its update via github.
+:: for advanced download, aria will be a future choice. It's already included in the binaries folder'
+
+:updater_check_update
+if "%updater_off%"=="true" (goto updater_off_warning)
 if not exist "%fw_temp%" ( md "%fw_temp%" )
 
 echo %version%>"%fw_temp%\actual.fw"
@@ -129,27 +196,27 @@ echo.
 echo Done. 
 
 
-:updater_compare
+:updater_version_compare
 echo comparing version...
 
 
 if exist "%fw_temp%\actual.fw" (
-	set /P version=<"%fw_temp%\actual.fw"
-	)
-	
+    set /P version=<"%fw_temp%\actual.fw"
+    )
+    
 if exist "%fw_temp%\new.fw" (
-	set /P new_version=<"%fw_temp%\new.fw"
-	) ELSE (
-	set new_version=not found download error
-	)
+    set /P new_version=<"%fw_temp%\new.fw"
+    ) ELSE (
+    set new_version=not found download error
+    )
 
 if exist "%fw_temp%\dummy.txt" ( 
-	set version=9.99
-	)
+    set version=9.99
+    )
 
 if exist "%fw_temp%\dummy.txt" ( 
-	set new_version=9.99
-	)
+    set new_version=9.99
+    )
 
 
 echo Actual Version is : %version%
@@ -160,6 +227,9 @@ if "%1"=="update" (set "new_version=forced" & goto updater_process)
 if "%version%"=="%new_version%" (goto check_overlay)
 if "%version%"=="9.99" (goto check_overlay)
 if "%new_version%"=="not found download error" (goto self_test)
+
+
+
 
 
 :updater_process
@@ -178,6 +248,9 @@ timeout 5
 start "%fw_temp%\run.cmd"
 goto EOF
 
+
+
+
 :updated
 cls
 Echo this version has been updated to %new_version%
@@ -192,10 +265,24 @@ timeout 3 /NOBREAK
 goto step1
 
 
+
+
+:updater_off_warning
+echo.
+Echo WARNING : updater has been disabled in settings.
+echo.
+goto check_overlay
+
+
+
+
 :check_overlay
 
 if exist "%SSD_dir%" (uwfmgr volume %uwfstat% c:)
 %debug%
+
+
+
 
 :Starting_block
 echo Killing Explorer process (for best performance)
@@ -204,19 +291,32 @@ echo.
 taskkill -im explorer.exe /f
 taskkill -im x360ce.exe /f
 
+
+
+
 :audio_part
 echo unmuting audio
 call "%binaries%\nircmd\nircmd.exe" mutesysvolume %Sound_vol%
 
-:exe_launchers
+
+:controller_run
+
+:: Starting Xbox360 Controller Emulator
+
+:: note : le start min NE MARCHE PAS, c'est pour ca que j'ai utilis? un raccourci ....
+:: start /MIN "D:\Xbox360ce\X360ce.EXE"
+
+start "" "%binaries%\Xbox360ce\x360ce.exe.lnk"
+
+
+:exe_launcher
 echo.
 echo hello i'm launching exes !
 echo.
 echo Starting Controllers
-::start /MIN "D:\Xbox360ce\X360ce.EXE"
-start "" "%binaries%\Xbox360ce\x360ce.exe.lnk"
+cd /D d:\coinops && call "d:\coinops\coins_ops_main.exe"
 timeout 5
-pause
+
 
 
 
@@ -224,11 +324,12 @@ pause
 cls
 echo Entering Relauncher mode
 echo.
-echo You have 5 seconds before relaunch.
+echo You have 10 seconds before relaunch.
 echo Close this window will let you use O//S 
 echo.
+echo If you've just exited coinops, I will relaunch it in 10 seconds. Please Wait.
 call explorer.exe
-timeout 5 /NOBREAK
+timeout 10 /NOBREAK
 goto step1
 
 
@@ -256,4 +357,37 @@ echo.
 if "%selftest%"=="OK" (goto Starting_block)
 
 echo.
+
+:Self_test_show
+
+:: this part will show the results of tests.
+:: it's here for nothing right now, but i will probably quickly use it !
+powershell -command "& {Write-Host -NoNewline 'Testing ... ' -ForegroundColor White}"
+
+
+if exist "toto.txt" (
+    set state=OK
+    powershell -command "& {Write-Host -NoNewline '!state!' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    set state=error
+    powershell -command "& {Write-Host -NoNewline '!state!' -ForegroundColor Red; [Console]::ResetColor()}"
+)
+
+echo.
+
+
+
+powershell -command "& {Write-Host -NoNewline 'Testing ... ' -ForegroundColor White}"
+
+if exist "toto1.txt" (
+    set state=OK
+    powershell -command "& {Write-Host -NoNewline '!state!' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    set state=error
+    powershell -command "& {Write-Host -NoNewline '!state!' -ForegroundColor Red; [Console]::ResetColor()}"
+)
+
+echo.
+
+
 :EOF
