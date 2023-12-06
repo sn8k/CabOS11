@@ -1,0 +1,156 @@
+@echo off
+::Starter 2.0
+::
+:: Launcher CabOS 11
+::
+::
+::
+::
+::
+::
+::
+::
+::
+::
+
+set Version=2.0
+
+::Valeurs numeraires
+set Sound_vol=0
+set time_upd=30
+setlocal EnableDelayedExpansion
+
+
+::Chemins
+set BASE_DIR=D:\CabOS
+set SSD_dir=D:\cabOS\temp\uwf_mgr
+set X360_ctl=D:\CabOS\Binaries\Xbox360ce\x360ce.exe
+set emul_path=E:\DATA_WIN11\CoinOPS Collections.exe
+set aria_path=D:\CabOS\binaries\aria
+set upd_path=D:\CabOS\temp\updater
+set binaries=D:\CabOS\binaries
+set fw_temp=D:\CabOS\temp\updater
+
+::Updater settings
+set update_url=https://raw.githubusercontent.com/sn8k/CabOS/main/version.run
+set runner_url=https://github.com/sn8k/CabOS/raw/main/runner.cmd
+set zipped_url=https://github.com/sn8k/CabOS/archive/refs/heads/main.zip
+
+
+:redirector
+if "%1"=="?" ( goto :helper )
+if "%1"=="help" ( goto :helper )
+if "%1"=="protect" ( echo protect >%SSD_dir%\uwfstat.tmp )
+if "%1"=="unprotect" ( echo unprotect >%SSD_dir%\uwfstat.tmp )
+if "%1"=="debug" ( set debug=pause )
+if "%1"=="update" ( cls & goto updater_compare )
+if "%1"=="noupdate" ( cls & goto step1 )
+
+goto step1
+
+:helper
+echo CabOS 2.0 Launcher %version%
+echo.
+echo Arguments :
+echo ? / help : this screen
+echo protect : protect overlay
+echo protect : protect overlay
+echo update : force update
+echo.
+goto EOF
+
+
+:step1
+cls
+:: This part is empty, that's normal
+
+:updater
+if not exist "%fw_temp%" ( md "%fw_temp%" )
+
+echo %version%>"%fw_temp%\actual.fw"
+
+Echo Checking if updates are available
+echo.
+echo Checking %update_url% ....
+echo fake loading, will be removed OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOooooooooooooooo
+echo.
+echo Done. 
+
+
+:updater_compare
+echo comparing version...
+
+
+if exist "%fw_temp%\actual.fw" (
+	set /P version=<"%fw_temp%\actual.fw"
+	)
+	
+if exist "%fw_temp%\new.fw" (
+	set /P new_version=<"%fw_temp%\new.fw"
+	) ELSE (
+	set new_version=not found download error
+	)
+
+if exist "%fw_temp%\dummy.txt" ( 
+	set version=9.99
+	)
+
+if exist "%fw_temp%\dummy.txt" ( 
+	set new_version=9.99
+	)
+
+
+echo Actual Version is : %version%
+echo last updated Version is : %new_version%
+if "%1"=="update" (set "new_version=forced" & goto updater_process)
+if "%version%"=="%new_version%" (goto check_overlay)
+if "%version%"=="9.99" (goto check_overlay)
+if "%new_version%"=="not found download error" (goto self_test)
+
+
+:updater_process
+echo.
+echo i will install Ver. %new_version% over %version%
+echo you still can close the windows now before process starts.
+echo.
+echo.
+echo timeout 5 > %fw_temp%\run.cmd
+echo copy %base_dir%\launcher.cmd %fw_temp%\launcher-%version%.tmp >> %fw_temp%\run.cmd
+
+echo copy %fw_temp%\launcher.tmp %base_dir%\launcher.cmd  >> %fw_temp%\run.cmd
+echo start %base_dir%\launcher.cmd noupdate >> %fw_temp%\run.cmd
+
+timeout 5
+start %fw_temp%\run.cmd
+goto EOF
+
+:check_overlay
+
+if exist "%SSD_dir%" (uwfmgr volume %uwfstat% c:)
+%debug%
+
+:Starting_block
+echo Killing Explorer process (for best performance)
+echo.
+
+taskkill -im explorer.exe /f
+taskkill -im x360ce.exe /f
+
+:audio_part
+echo unmuting audio
+call "%binaries%\nircmd\nircmd.exe" mutesysvolume %Sound_vol%
+
+:exe_launchers
+
+
+
+:explorer_mode
+
+
+
+:Self_test
+dir
+
+:EOF
+echo EOF
+Timeout 5

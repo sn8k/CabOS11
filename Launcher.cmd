@@ -14,8 +14,19 @@ setlocal ENABLEDELAYEDEXPANSION
 :: check if there's an external setting file.
 :: the setting must be called "main.cmd" and be placed in the settings folder.
 
+
+
+
 cd /d %~dp0
 
+powershell -command "& {Write-Host -NoNewline 'Check for external settings : ' -ForegroundColor White}"
+
+if exist ".\Settings\main.cmd" (
+    powershell -command "& {Write-Host -NoNewline 'Found main.cmd. Using it.' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    powershell -command "& {Write-Host -NoNewline 'not found, using default settings' -ForegroundColor Red; [Console]::ResetColor()}"
+)
+Echo.
 if not exist ".\settings\" (
     echo settings folder not found. A new installation ?
     Echo.
@@ -26,13 +37,14 @@ if not exist ".\settings\" (
     md .\temp\updater
     md .\temp\hotfixes
     md .\temp\uwf_mgr
+    echo Folders created.
+    pause
     )
 
 
 
 if exist ".\settings\main.cmd" ( 
     call ".\settings\main.cmd" 
-    echo external settings loaded 
     goto use_external_settings 
     )
 
@@ -107,35 +119,39 @@ NET FILE 1>NUL 2>NUL
 if '%errorlevel%' == '0' ( goto gotAdmin ) else ( goto getAdmin )
 
 :getAdmin
-echo Demande d'elevation de privileges administratifs...
-cd /d %~dp0
+powershell -command "& {Write-Host -NoNewline 'Request Admin rights : ' -ForegroundColor White}"
 powershell -Command "& { Start-Process cmd -ArgumentList '/c %0' -Verb RunAs }"
-exit /b
+::exit /b
 
 :gotAdmin
 
-:: should now have admin rights
+:: We should now have admin rights
 
-@echo off
-echo.
-echo Admin rights checked.
-echo.
+::@echo off
 
+(
+    powershell -command "& {Write-Host -NoNewline 'ENABLED' -ForegroundColor Green; [Console]::ResetColor()}"
+)
+Echo.
 
 :hotfixes
 :: this whole part will launcher external batch from the hotfixes folder
+powershell -command "& {Write-Host 'Checking hotfixes presence : ' -ForegroundColor White}"
+
 
 :hotfixes_downloader
 ::a completer.
 
 :hotfixes_launcher
-for %%f in (%hotfixes%\*.bat) do (
-    echo hotfixes found in folder.
-    echo Starting them.
-    echo.
-    call "%%f"
-)
 
+for %%f in (%hotfixes%\*.bat) do (
+    call "%%f"
+    ) 
+    :: a tenter d'activer tot ou tard. '
+ ::   ELSE (
+ ::   powershell -command "& {Write-Host -NoNewline 'No Hotfixes found ' -ForegroundColor Red}"
+ ::    )
+pause
 
 :serial
 :: this part creates an unique serialNumber. 
@@ -152,14 +168,14 @@ for /f "tokens=2 delims=: " %%a in ('ipconfig ^| find "Adresse physique"') do (
 )
 
 :: Remplace les deux-points par des tirets
-set "mac=!mac::=-!"
+:: set "mac=!mac::=-!"
 
 :: Generate a serial number if needed
-if not exist "d:\CabOS\Settings\serial.tmp" (
+if not exist ".\Settings\serial.tmp" (
     set serial=%random%-%date%-%random%
-    echo %serial% >"d:\CabOS\serial.tmp"
+    echo %serial%>"%BASE_DIR%\Settings\serial.tmp"
     ) ELSE (
-    set /P serial=<"d:\CabOS\serial.tmp"
+    set /P serial=<"%BASE_DIR%\Settings\serial.tmp"
     )
     
 powershell -command "& {Write-Host -NoNewline 'Serial number of this Cabinet: ' -ForegroundColor White}"
@@ -170,12 +186,7 @@ if exist ".\Settings\serial.tmp" (
     powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Red; [Console]::ResetColor()}"
 )
 
-echo.
-    
-echo.
-echo  %serial%
-echo.
-
+Echo.
 
 
 :updater
@@ -183,7 +194,7 @@ echo.
 :: for advanced download, aria will be a future choice. It's already included in the binaries folder'
 
 :updater_check_update
-if "%updater_off%"=="true" (goto updater_off_warning)
+
 if not exist "%fw_temp%" ( md "%fw_temp%" )
 
 echo %version%>"%fw_temp%\actual.fw"
@@ -222,6 +233,7 @@ if exist "%fw_temp%\dummy.txt" (
 echo Actual Version is : %version%
 echo last updated Version is : %new_version%
 echo.
+if "%updater_off%"=="true" (goto updater_off_warning)
 
 if "%1"=="update" (set "new_version=forced" & goto updater_process)
 if "%version%"=="%new_version%" (goto check_overlay)
@@ -295,12 +307,23 @@ taskkill -im x360ce.exe /f
 
 
 :audio_part
+    
+powershell -command "& {Write-Host -NoNewline 'Serial number of this Cabinet: ' -ForegroundColor White}"
+
+if exist ".\Settings\serial.tmp" (
+    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Red; [Console]::ResetColor()}"
+)
+
+
 echo unmuting audio
 call "%binaries%\nircmd\nircmd.exe" mutesysvolume %Sound_vol%
 
 
 :controller_run
-
+echo.
+echo Starting Controllers
 :: Starting Xbox360 Controller Emulator
 
 :: note : le start min NE MARCHE PAS, c'est pour ca que j'ai utilis? un raccourci ....
@@ -313,7 +336,7 @@ start "" "%binaries%\Xbox360ce\x360ce.exe.lnk"
 echo.
 echo hello i'm launching exes !
 echo.
-echo Starting Controllers
+pause
 cd /D d:\coinops && call "d:\coinops\coins_ops_main.exe"
 timeout 5
 
