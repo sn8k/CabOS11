@@ -6,7 +6,7 @@
 :: it's meant to be called by CabOS main script.
 
 :: Version Number
-set Version=2.05
+set Version=2.06
 
 :: Audio Volume (values are inverted, 0 is default) 
 set Sound_vol=0
@@ -33,8 +33,6 @@ set aria_path=.\binaries\aria
 set upd_path=.\temp\updater
 :: binaries are 3rd party exe location
 set binaries=.\binaries
-:: fw_temp is updater working folder.
-set fw_temp=.\temp\updater
 :: hotfixes folder location.
 set hotfixes=.\temp\hotfixes
 
