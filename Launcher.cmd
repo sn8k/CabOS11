@@ -19,6 +19,17 @@ setlocal ENABLEDELAYEDEXPANSION
 
 cd /d %~dp0
 
+
+:startup
+:: Warming up machine ... 
+
+:startup_standalone_version_set
+:: Tentes de recuperer la version si elle est bien presente
+if exist ".\Settings\version.ini" (set /P version=<".\Settings\version.ini") ELSE (set version=uninstalled)
+
+:startup_settings
+:: loads external files (main.cmd)
+
 powershell -command "& {Write-Host -NoNewline 'Check for external settings : ' -ForegroundColor White}"
 
 if exist ".\Settings\main.cmd" (
@@ -27,8 +38,17 @@ if exist ".\Settings\main.cmd" (
     powershell -command "& {Write-Host -NoNewline 'not found, using default settings' -ForegroundColor Red; [Console]::ResetColor()}"
 )
 Echo.
+
+
+:startup_folder_test
+powershell -command "& {Write-Host -NoNewline 'Check folders presence : ' -ForegroundColor White}"
+if exist ".\Settings" (
+    powershell -command "& {Write-Host -NoNewline 'Found folders' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    powershell -command "& {Write-Host -NoNewline 'settings folder not found. A new installation ?' -ForegroundColor Red; [Console]::ResetColor()}"
+)
+
 if not exist ".\settings\" (
-    echo settings folder not found. A new installation ?
     Echo.
     echo Creating main folders
     md .\Settings
@@ -38,7 +58,7 @@ if not exist ".\settings\" (
     md .\temp\hotfixes
     md .\temp\uwf_mgr
     echo Folders created.
-    pause
+    goto startup_foldertest
     )
 
 
@@ -46,33 +66,33 @@ if not exist ".\settings\" (
 if exist ".\settings\main.cmd" ( 
     call ".\settings\main.cmd" 
     goto use_external_settings 
+    ) ELSE (goto ini_generate)
+
+
+:ini_generate
+:: these are default value
+echo set Sound_vol=0 >> .\Settings\main.cmd
+echo set time_upd=30 >> .\Settings\main.cmd
+echo set BASE_DIR=.\ >> .\Settings\main.cmd
+echo set SSD_dir=.\temp\uwf_mgr >> .\Settings\main.cmd
+echo set X360_ctl=.\Binaries\Xbox360ce\x360ce.exe >> .\Settings\main.cmd
+echo set emul_path=E:\DATA_WIN11\CoinOPS Collections.exe >> .\Settings\main.cmd
+echo set aria_path=.\binaries\aria >> .\Settings\main.cmd
+echo set upd_path=.\temp\updater >> .\Settings\main.cmd
+echo set binaries=.\binaries >> .\Settings\main.cmd
+echo set hotfixes=.\temp\hotfixes >> .\Settings\main.cmd
+echo set updater_off=true >> .\Settings\main.cmd
+echo set update_url=https://raw.githubusercontent.com/sn8k/CabOS/main/version.run >> .\Settings\main.cmd
+echo set runner_url=https://github.com/sn8k/CabOS/raw/main/runner.cmd >> .\Settings\main.cmd
+echo set zipped_url=https://github.com/sn8k/CabOS/archive/refs/heads/main.zip >> .\Settings\main.cmd
+
+if exist ".\Settings\main.cmd" (
+    goto startup_settings
+    ) ELSE (
+    echo ERROR WRITING MAIN.CMD. CHECK FOLDERS 
+    goto EOF
     )
 
-
-set Version=2.05
-
-::Valeurs numeraires
-set Sound_vol=0
-set time_upd=30
-setlocal EnableDelayedExpansion
-
-
-::Chemins
-set BASE_DIR=D:\CabOS
-set SSD_dir=D:\cabOS\temp\uwf_mgr
-set X360_ctl=D:\CabOS\Binaries\Xbox360ce\x360ce.exe
-set emul_path=E:\DATA_WIN11\CoinOPS Collections.exe
-set aria_path=D:\CabOS\binaries\aria
-set upd_path=D:\CabOS\temp\updater
-set binaries=D:\CabOS\binaries
-set fw_temp=D:\CabOS\temp\updater
-set hotfixes=D:\CabOS\temp\hotfixes
-
-::Updater settings
-set updater_off=true
-set update_url=https://raw.githubusercontent.com/sn8k/CabOS/main/version.runs
-set runner_url=https://github.com/sn8k/CabOS/raw/main/runner.cmd
-set zipped_url=https://github.com/sn8k/CabOS/archive/refs/heads/main.zip
 
 :use_external_settings
 
@@ -195,9 +215,9 @@ Echo.
 
 :updater_check_update
 
-if not exist "%fw_temp%" ( md "%fw_temp%" )
+if not exist "%upd_path%" ( md "%upd_path%" )
 
-echo %version%>"%fw_temp%\actual.fw"
+echo %version%>"%upd_path%\actual.fw"
 
 Echo Checking if updates are available
 echo.
@@ -211,21 +231,21 @@ echo Done.
 echo comparing version...
 
 
-if exist "%fw_temp%\actual.fw" (
-    set /P version=<"%fw_temp%\actual.fw"
+if exist "%upd_path%\actual.fw" (
+    set /P version=<"%upd_path%\actual.fw"
     )
     
-if exist "%fw_temp%\new.fw" (
-    set /P new_version=<"%fw_temp%\new.fw"
+if exist "%upd_path%\new.fw" (
+    set /P new_version=<"%upd_path%\new.fw"
     ) ELSE (
     set new_version=not found download error
     )
 
-if exist "%fw_temp%\dummy.txt" ( 
+if exist "%upd_path%\dummy.txt" ( 
     set version=9.99
     )
 
-if exist "%fw_temp%\dummy.txt" ( 
+if exist "%upd_path%\dummy.txt" ( 
     set new_version=9.99
     )
 
@@ -250,14 +270,14 @@ echo i will install Ver. %new_version% over %version%
 echo you still can close the windows now before process starts.
 echo.
 echo.
-echo timeout 5 > %fw_temp%\run.cmd
-echo copy %base_dir%\launcher.cmd %fw_temp%\launcher-%version%.tmp >> %fw_temp%\run.cmd
+echo timeout 5 > %upd_path%\run.cmd
+echo copy %base_dir%\launcher.cmd %upd_path%\launcher-%version%.tmp >> %upd_path%\run.cmd
 
-echo copy %fw_temp%\launcher.tmp %base_dir%\launcher.cmd  >> %fw_temp%\run.cmd
-echo start %BASE_DIR%\launcher.cmd noupdate >> %fw_temp%\run.cmd
+echo copy %upd_path%\launcher.tmp %base_dir%\launcher.cmd  >> %upd_path%\run.cmd
+echo start %BASE_DIR%\launcher.cmd noupdate >> %upd_path%\run.cmd
 
 timeout 5
-start "%fw_temp%\run.cmd"
+start "%upd_path%\run.cmd"
 goto EOF
 
 
@@ -268,8 +288,8 @@ cls
 Echo this version has been updated to %new_version%
 Echo Backing up previous release ...
 echo.
-copy %fw_temp%\updater %fw_temp%\updater-%DATE% 
-rd %fw_temp%\updater /S /Q
+copy %upd_path%\updater %upd_path%\updater-%DATE% 
+rd %upd_path%\updater /S /Q
 echo.
 Echo Done
 echo.
