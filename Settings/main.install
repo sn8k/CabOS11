@@ -1,0 +1,15 @@
+:: generated on 06/12/2023 
+:: reason : no main.cmd found 
+set time_upd=30
+set BASE_DIR=D:\CabOS
+set SymLink_Path=C:\Launcher
+set SSD_dir=C:\Launcher\temp\uwf_mgr
+set X360_ctl=C:\Launcher\Binaries\Xbox360ce\x360ce.exe
+set emul_path=E:\DATA_WIN11\CoinOPS Collections.exe
+set aria_path=C:\Launcher\binaries\aria2
+set upd_path=C:\Launcher\temp\updater
+set binaries=C:\Launcher\binaries
+set hotfixes=C:\Launcher\temp\hotfixes
+set updater_off=true
+set update_url=https://github.com/sn8k/CabOS11/zipball/master/ 
+set runner_url=https://github.com/sn8k/CabOS/raw/main/runner.cmd 

@@ -2,8 +2,7 @@
 
 :: Presentation :
 set hotfix_name=GitHub Extention
-set hotfix_version=1
-
+set hotfix_version=1.01
 :: hotfix welcome message
 powershell -command "& {Write-Host '- Loading %hotfix_name% Extention ' -ForegroundColor White}"
 
@@ -17,10 +16,15 @@ powershell -command "& {Write-Host '- Loading %hotfix_name% Extention ' -Foregro
 ::echo on va dire que ca download.
 ::echo apres si c'est bon on va afficher un joli OK
 
+echo Downloading latest version
+%aria_path%\aria2c.exe -d %upd_path% -o lastest.zip %update_url%
 
+::if exist "%upd_path%\lastest.zip" (echo download OK) else (echo download ERROR)
 
 :: hotfix end message 
 
 powershell -command "& {Write-Host '- Loaded %hotfix_name% V.%hotfix_version%' -ForegroundColor green}"
 
+
+pause
 :EOF

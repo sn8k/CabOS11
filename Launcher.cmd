@@ -15,17 +15,48 @@ setlocal ENABLEDELAYEDEXPANSION
 :: the setting must be called "main.cmd" and be placed in the settings folder.
 
 
-
+if "%1"=="" (goto getAdmin) ELSE (goto redirector)
 
 cd /d %~dp0
 
 
 :startup
 :: Warming up machine ... 
+:: BatchGotAdmin
+:getAdmin
+:-------------------------------------
+REM  --> Check for permissions
+    IF "%PROCESSOR_ARCHITECTURE%" EQU "amd64" (
+>nul 2>&1 "%SYSTEMROOT%\SysWOW64\cacls.exe" "%SYSTEMROOT%\SysWOW64\config\system"
+) ELSE (
+>nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+)
+
+REM --> If error flag set, we do not have admin.
+if '%errorlevel%' NEQ '0' (
+    echo Requesting administrative privileges...
+    goto UACPrompt
+) else ( goto gotAdmin )
+
+:UACPrompt
+    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+    set params= %*
+    echo UAC.ShellExecute "cmd.exe", "/c ""%~s0"" %params:"=""%", "", "runas", 1 >> "%temp%\getadmin.vbs"
+
+    "%temp%\getadmin.vbs"
+    del "%temp%\getadmin.vbs"
+    exit /B
+
+:gotAdmin
+    pushd "%CD%"
+    CD /D "%~dp0"
+:--------------------------------------    
+
+
 
 :startup_standalone_version_set
 :: Tentes de recuperer la version si elle est bien presente
-if exist ".\Settings\version.ini" (set /P version=<".\Settings\version.ini") ELSE (set version=uninstalled)
+if exist ".\Settings\version.cmd" (set /P version=<".\Settings\version.cmd") ELSE (set version=uninstalled)
 
 :startup_settings
 :: loads external files (main.cmd)
@@ -33,20 +64,21 @@ if exist ".\Settings\version.ini" (set /P version=<".\Settings\version.ini") ELS
 powershell -command "& {Write-Host -NoNewline 'Check for external settings : ' -ForegroundColor White}"
 
 if exist ".\Settings\main.cmd" (
-    powershell -command "& {Write-Host -NoNewline 'Found main.cmd. Using it.' -ForegroundColor Green; [Console]::ResetColor()}"
+    powershell -command "& {Write-Host 'Found main.cmd. Using it.' -ForegroundColor Green; [Console]::ResetColor()}"
 ) ELSE (
-    powershell -command "& {Write-Host -NoNewline 'not found, using default settings' -ForegroundColor Red; [Console]::ResetColor()}"
+    powershell -command "& {Write-Host 'not found, using default settings' -ForegroundColor Red; [Console]::ResetColor()}"
 )
-Echo.
 
 
 :startup_folder_test
 powershell -command "& {Write-Host -NoNewline 'Check folders presence : ' -ForegroundColor White}"
 if exist ".\Settings" (
-    powershell -command "& {Write-Host -NoNewline 'Found folders' -ForegroundColor Green; [Console]::ResetColor()}"
+    powershell -command "& {Write-Host  'Found folders' -ForegroundColor Green; [Console]::ResetColor()}"
 ) ELSE (
-    powershell -command "& {Write-Host -NoNewline 'settings folder not found. A new installation ?' -ForegroundColor Red; [Console]::ResetColor()}"
+    powershell -command "& {Write-Host  'settings folder not found. A new installation ?' -ForegroundColor Red; [Console]::ResetColor()}"
 )
+
+
 
 if not exist ".\settings\" (
     Echo.
@@ -58,35 +90,41 @@ if not exist ".\settings\" (
     md .\temp\hotfixes
     md .\temp\uwf_mgr
     echo Folders created.
-    goto startup_foldertest
+    echo retrying ...
+    goto startup_folder_test
     )
 
 
 
 if exist ".\settings\main.cmd" ( 
     call ".\settings\main.cmd" 
-    goto use_external_settings 
+    goto step1
     ) ELSE (goto ini_generate)
-
 
 :ini_generate
 :: these are default value
-echo set Sound_vol=0 >> .\Settings\main.cmd
-echo set time_upd=30 >> .\Settings\main.cmd
-echo set BASE_DIR=.\ >> .\Settings\main.cmd
-echo set SSD_dir=.\temp\uwf_mgr >> .\Settings\main.cmd
-echo set X360_ctl=.\Binaries\Xbox360ce\x360ce.exe >> .\Settings\main.cmd
-echo set emul_path=E:\DATA_WIN11\CoinOPS Collections.exe >> .\Settings\main.cmd
-echo set aria_path=.\binaries\aria >> .\Settings\main.cmd
-echo set upd_path=.\temp\updater >> .\Settings\main.cmd
-echo set binaries=.\binaries >> .\Settings\main.cmd
-echo set hotfixes=.\temp\hotfixes >> .\Settings\main.cmd
-echo set updater_off=true >> .\Settings\main.cmd
-echo set update_url=https://raw.githubusercontent.com/sn8k/CabOS/main/version.run >> .\Settings\main.cmd
+:: from here, a default main.cmd is generated
+echo :: generated on %date% > .\Settings\main.cmd
+echo :: reason : no main.cmd found >> .\Settings\main.cmd
+
+echo set Sound_vol=0>> .\Settings\main.cmd
+echo set time_upd=30>> .\Settings\main.cmd
+echo set BASE_DIR=%cd%>> .\Settings\main.cmd
+echo set SymLink_Path=C:\Launcher>> .\Settings\main.cmd
+echo set SSD_dir=%BASE_DIR%\temp\uwf_mgr>> .\Settings\main.cmd
+echo set X360_ctl=%BASE_DIR%\Binaries\Xbox360ce\x360ce.exe>> .\Settings\main.cmd
+echo set emul_path=E:\DATA_WIN11\CoinOPS Collections.exe>> .\Settings\main.cmd
+echo set aria_path=%BASE_DIR%\binaries\aria2>> .\Settings\main.cmd
+echo set upd_path=%BASE_DIR%\temp\updater>> .\Settings\main.cmd
+echo set binaries=%BASE_DIR%\binaries>> .\Settings\main.cmd
+echo set hotfixes=%BASE_DIR%\temp\hotfixes>> .\Settings\main.cmd
+echo set updater_off=true>> .\Settings\main.cmd
+echo set update_url=https://github.com/sn8k/CabOS11/zipball/master/ >> .\Settings\main.cmd
 echo set runner_url=https://github.com/sn8k/CabOS/raw/main/runner.cmd >> .\Settings\main.cmd
-echo set zipped_url=https://github.com/sn8k/CabOS/archive/refs/heads/main.zip >> .\Settings\main.cmd
 
 if exist ".\Settings\main.cmd" (
+    echo Settings file generated.
+    echo Reloading CabOS. Please Wait.
     goto startup_settings
     ) ELSE (
     echo ERROR WRITING MAIN.CMD. CHECK FOLDERS 
@@ -96,15 +134,41 @@ if exist ".\Settings\main.cmd" (
 
 :use_external_settings
 
-:redirector
-if "%1"=="noupdate" ( cls & goto updated )
-if "%1"=="?" ( goto :helper )
-if "%1"=="help" ( goto :helper )
-if "%1"=="protect" ( echo protect >%SSD_dir%\uwfstat.tmp )
-if "%1"=="unprotect" ( echo unprotect >%SSD_dir%\uwfstat.tmp )
-if "%1"=="debug" ( echo on && set debug=pause )
-if "%1"=="update" ( cls & goto updater_compare )
+:serial
+:: this part creates an unique serialNumber. 
+:: i will probably use it as licencing option, but for now, it's useless and only there to keep the idea alive.
 
+:Serial_gen
+
+:: a refaire plus tard : prise en charge de l'adresse mac pour generer un SN
+:: for /f "tokens=2 delims=: " %%a in ('ipconfig ^| find "Adresse physique"') do (
+::    set "mac=%%a"
+:: )
+:: Remplace les deux-points par des tirets
+:: set "mac=!mac::=-!"
+
+:: Generate a serial number if needed
+if not exist "%BASE_DIR%\Settings\serial.tmp" (
+    set serial=ARC10-%random%-%random%
+    ) ELSE (
+    set /P serial=<"%BASE_DIR%\Settings\serial.tmp"
+    )
+
+
+:: showing SN. Green if there were already a serial, red if it has been generated.
+    powershell -command "& {Write-Host -NoNewline 'Serial number of this Cabinet: ' -ForegroundColor White}"
+
+if exist ".\Settings\serial.tmp" (
+    powershell -command "& {Write-Host '!serial!' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    powershell -command "& {Write-Host '!serial!' -ForegroundColor Red; [Console]::ResetColor()}"
+)
+
+:: write serial in file. 
+:: IT MUST BE PLACED here, else it might lead to an (unimportant) error "echo is deactivated" instead of the serial/
+    echo %serial% >"%BASE_DIR%\Settings\serial.tmp"
+    
+    
 goto step1
 
 :helper
@@ -134,25 +198,56 @@ goto EOF
 
 :admin_check
 
-:: Request admin rights
-NET FILE 1>NUL 2>NUL
-if '%errorlevel%' == '0' ( goto gotAdmin ) else ( goto getAdmin )
 
-:getAdmin
-powershell -command "& {Write-Host -NoNewline 'Request Admin rights : ' -ForegroundColor White}"
-powershell -Command "& { Start-Process cmd -ArgumentList '/c %0' -Verb RunAs }"
+
+:: Request admin rights
+::NET FILE 1>NUL 2>NUL
+::if '%errorlevel%' == '0' ( goto gotAdmin ) else ( goto getAdmin )
+
+::getAdmin
+::powershell -command "& {Write-Host -NoNewline 'Request Admin rights : ' -ForegroundColor White}"
+::powershell -Command "& { Start-Process cmd -ArgumentList '/c %0' -Verb RunAs }"
 ::exit /b
 
-:gotAdmin
+::gotAdmin
 
 :: We should now have admin rights
 
-::@echo off
 
-(
-    powershell -command "& {Write-Host -NoNewline 'ENABLED' -ForegroundColor Green; [Console]::ResetColor()}"
+
+::(
+::    powershell -command "& {Write-Host 'ENABLED' -ForegroundColor Green; [Console]::ResetColor()}"::
+::)
+
+
+:check_mklink
+if not exist "%SymLink_Path%" (goto check_mklink_create) ELSE (goto audio_part)
+
+:check_mklink_create
+mklink /D %SymLink_Path% %BASE_DIR% 
+
+:check_mklink_present
+if exist "%SymLink_Path%" (
+    echo SymLink OK
+    echo clearing config file
+    ren %BASE_DIR%\Settings\main.cmd main.install
+    Echo.
+    echo relaunching from C
+    cd /D %symlink_path%
+    start "" %symlink_path%\launcher.cmd
+    exit /b
+    ) 
+    
+:audio_part
+    
+powershell -command "& {Write-Host -NoNewline 'Unmuting audio : ' -ForegroundColor White}"
+
+if exist "%binaries%\nircmd\nircmd.exe" (
+    call "%binaries%\nircmd\nircmd.exe" mutesysvolume %Sound_vol%
+    powershell -command "& {Write-Host  'OK' -ForegroundColor Green; [Console]::ResetColor()}"
+) ELSE (
+    powershell -command "& {Write-Host  'ERROR' -ForegroundColor Red; [Console]::ResetColor()}"
 )
-Echo.
 
 :hotfixes
 :: this whole part will launcher external batch from the hotfixes folder
@@ -165,48 +260,12 @@ powershell -command "& {Write-Host 'Checking hotfixes presence : ' -ForegroundCo
 :hotfixes_launcher
 
 for %%f in (%hotfixes%\*.bat) do (
-    call "%%f"
+        call "%%f"
     ) 
     :: a tenter d'activer tot ou tard. '
  ::   ELSE (
  ::   powershell -command "& {Write-Host -NoNewline 'No Hotfixes found ' -ForegroundColor Red}"
  ::    )
-pause
-
-:serial
-:: this part creates an unique serialNumber. 
-:: i will probably use it as licencing option, but for now, it's useless and only there to keep the idea alive.
-
-:Serial_gen
-
-
-@echo off
-
-
-for /f "tokens=2 delims=: " %%a in ('ipconfig ^| find "Adresse physique"') do (
-    set "mac=%%a"
-)
-
-:: Remplace les deux-points par des tirets
-:: set "mac=!mac::=-!"
-
-:: Generate a serial number if needed
-if not exist ".\Settings\serial.tmp" (
-    set serial=%random%-%date%-%random%
-    echo %serial%>"%BASE_DIR%\Settings\serial.tmp"
-    ) ELSE (
-    set /P serial=<"%BASE_DIR%\Settings\serial.tmp"
-    )
-    
-powershell -command "& {Write-Host -NoNewline 'Serial number of this Cabinet: ' -ForegroundColor White}"
-
-if exist ".\Settings\serial.tmp" (
-    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Green; [Console]::ResetColor()}"
-) ELSE (
-    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Red; [Console]::ResetColor()}"
-)
-
-Echo.
 
 
 :updater
@@ -219,16 +278,13 @@ if not exist "%upd_path%" ( md "%upd_path%" )
 
 echo %version%>"%upd_path%\actual.fw"
 
-Echo Checking if updates are available
-echo.
-echo Checking %update_url% ....
-echo fake loading, will be removed OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOooooooooooooooo
-echo.
-echo Done. 
+powershell -command "& {Write-Host -NoNewline 'Checking for updates : ' -ForegroundColor White}"
+if exist (%upd_path%\)
 
+powershell -command "& {Write-Host -NoNewline 'Done ' -ForegroundColor Green}"
 
 :updater_version_compare
-echo comparing version...
+powershell -command "& {Write-Host -NoNewline 'comparing version : ' -ForegroundColor White}" 
 
 
 if exist "%upd_path%\actual.fw" (
@@ -297,7 +353,17 @@ timeout 3 /NOBREAK
 goto step1
 
 
+:updater_rework
+if exist "%upd_path%\main_orig.cmd" (
+    fc "%upd_path%\main_orig.cmd" 
+    del "%upd_path%\lastest.zip" /Y
+    )
 
+
+if exist "%upd_path%\lastest.zip" (
+    %zipit% "%upd_path%\lastest.zip" 
+    del "%upd_path%\lastest.zip" /Y
+    )
 
 :updater_off_warning
 echo.
@@ -317,30 +383,20 @@ if exist "%SSD_dir%" (uwfmgr volume %uwfstat% c:)
 
 
 :Starting_block
-echo Killing Explorer process (for best performance)
-echo.
+powershell -command "& {Write-Host -NoNewline 'Closing Explorer : ' -ForegroundColor White}"
+ (
+    START /wait taskkill -im explorer.exe /f
+START /wait taskkill -im x360ce.exe /f
 
-taskkill -im explorer.exe /f
-taskkill -im x360ce.exe /f
-
-
-
-
-:audio_part
-    
-powershell -command "& {Write-Host -NoNewline 'Serial number of this Cabinet: ' -ForegroundColor White}"
-
-if exist ".\Settings\serial.tmp" (
-    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Green; [Console]::ResetColor()}"
-) ELSE (
-    powershell -command "& {Write-Host -NoNewline '!serial!' -ForegroundColor Red; [Console]::ResetColor()}"
+powershell -command "& {Write-Host 'Done' -ForegroundColor Green; [Console]::ResetColor()}"
 )
 
 
-echo unmuting audio
-call "%binaries%\nircmd\nircmd.exe" mutesysvolume %Sound_vol%
 
 
+
+
+pause
 :controller_run
 echo.
 echo Starting Controllers
@@ -432,5 +488,14 @@ if exist "toto1.txt" (
 
 echo.
 
+
+:redirector
+if "%1"=="noupdate" ( cls & goto updated )
+if "%1"=="?" ( goto :helper )
+if "%1"=="help" ( goto :helper )
+if "%1"=="protect" ( echo protect >%SSD_dir%\uwfstat.tmp )
+if "%1"=="unprotect" ( echo unprotect >%SSD_dir%\uwfstat.tmp )
+if "%1"=="debug" ( echo on && set debug=pause )
+if "%1"=="update" ( cls & goto updater_compare )
 
 :EOF
